@@ -1,6 +1,6 @@
 # Convex control plane — single Docker host (homelab).
 #
-# Env rule: dev via 'infisical run -- docker compose up' OR prod via '--env-file .env'. No baked secrets.
+# Env rule: dev via 'infisical run -- docker compose -f infra/compose.yml up' OR prod via '--env-file .env'. No baked secrets.
 #
 # Usage (from the repo root):
 #   docker compose -f infra/compose.yml config

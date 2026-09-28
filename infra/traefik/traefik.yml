@@ -9,7 +9,7 @@
 # two deployment-specific ACME values are supplied by the service environment
 # in infra/compose.yml instead:
 #   TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL=admin@${BASE_DOMAIN}
-#   CLOUDFLARE_DNS_API_TOKEN (dnsChallenge provider credential)
+#   CF_DNS_API_TOKEN (dnsChallenge provider credential)
 
 global:
   checkNewVersion: false
