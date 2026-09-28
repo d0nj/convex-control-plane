@@ -1,0 +1,57 @@
+# Traefik static configuration (v1: single Docker host).
+#
+# Mounted read-only at /etc/traefik/traefik.yml by the `traefik` service in
+# infra/compose.yml. Per-project routers/services are declared as container
+# labels by the worker (packages/orchestrator) and picked up by the Docker
+# provider — the proxy is never reloaded or reconfigured at runtime.
+#
+# NOTE: Traefik does not interpolate environment variables in this file. The
+# two deployment-specific ACME values are supplied by the service environment
+# in infra/compose.yml instead:
+#   TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL=admin@${BASE_DOMAIN}
+#   CLOUDFLARE_DNS_API_TOKEN (dnsChallenge provider credential)
+
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+log:
+  level: INFO
+
+entryPoints:
+  web:
+    address: ":80"
+    # Only TLS is served publicly; cleartext is redirected.
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    # The socket is mounted :ro — Traefik only reads container labels/state.
+    endpoint: "unix:///var/run/docker.sock"
+    # Containers are opt-in: a router only exists when traefik.enable=true is
+    # set (see the labels built in packages/orchestrator).
+    exposedByDefault: false
+    # Only containers on the shared `proxy` network are reachable/routeable.
+    network: proxy
+    watch: true
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      # email is injected from the service environment (see note above).
+      storage: /acme/acme.json
+      # DNS-01 challenge: works for every <slug>-api.<domain> host without
+      # publishing an HTTP challenge route, and does not need the host to be
+      # resolvable before the certificate is issued.
+      dnsChallenge:
+        provider: cloudflare
+        resolvers:
+          - "1.1.1.1:53"
+          - "8.8.8.8:53"

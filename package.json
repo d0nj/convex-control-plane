@@ -1,0 +1,17 @@
+{
+  "name": "convex-control-plane",
+  "private": true,
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "db:generate": "turbo run db:generate",
+    "db:migrate": "turbo run db:migrate",
+    "dev": "turbo run dev"
+  },
+  "devDependencies": {
+    "turbo": "2.11.5",
+    "typescript": "5.6.3"
+  }
+}
