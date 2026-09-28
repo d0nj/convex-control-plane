@@ -1,0 +1,20 @@
+{
+  "name": "@control/orchestrator",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/container.ts",
+  "types": "./src/container.ts",
+  "exports": {
+    ".": "./src/container.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "5.6.3",
+    "vitest": "^3.2.4"
+  }
+}
