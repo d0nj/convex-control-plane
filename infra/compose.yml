@@ -1,21 +1,24 @@
 # Convex control plane — single Docker host (homelab).
 #
+# Env rule: dev via 'infisical run -- docker compose up' OR prod via '--env-file .env'. No baked secrets.
+#
 # Usage (from the repo root):
-#   cp .env.example infra/.env      # then fill it in
 #   docker compose -f infra/compose.yml config
 #   docker compose -f infra/compose.yml up -d control-postgres convex-data-postgres
 #   pnpm db:migrate
 #   docker compose -f infra/compose.yml up -d
 #
-# Environment: Compose resolves the project directory from the first `-f`
-# file, so the `.env` must sit next to THIS file (infra/.env) — a root-level
-# `.env` is not loaded (pass `--env-file .env` if you prefer it at the root).
+# Every `${VAR}` below is a plain environment placeholder with no baked-in
+# value. Supply the values either way:
+#   dev  — infisical run -- docker compose -f infra/compose.yml up -d
+#   prod — cp .env.example .env  (fill it in) then
+#          docker compose --env-file .env -f infra/compose.yml up -d
+# Compose resolves the project directory from the first `-f` file, so a plain
+# `docker compose -f infra/compose.yml up` reads `.env` next to THIS file.
 #
-# Every `${VAR:-}` below deliberately defaults to empty so this file always
-# renders (`docker compose config` is used as the scaffold check). Empty
-# values fail loudly at `up` time — Postgres refuses to start without a
-# password — rather than being silently replaced by an insecure default.
-# The full required list lives in ../.env.example.
+# ../.env.example documents the key NAMES only (never values). Unset keys
+# resolve to empty and fail loudly at `up` time — Postgres refuses to start
+# without a password — rather than falling back to something insecure.
 
 name: convex-control-plane
 
@@ -30,9 +33,11 @@ services:
       # contact address and the DNS provider credential are injected via the
       # environment because Traefik does not interpolate variables inside
       # traefik.yml itself.
-      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL: admin@${BASE_DOMAIN:-}
+      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL: admin@${BASE_DOMAIN}
       # Lego credential for the DNS-01 challenge (provider: cloudflare).
-      CLOUDFLARE_DNS_API_TOKEN: ${CLOUDFLARE_DNS_API_TOKEN:-}
+      # Plain env placeholder: supplied by `infisical run` in dev, or by
+      # `--env-file .env` in prod. Never a literal value.
+      CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN}
     ports:
       - "80:80"
       - "443:443"
@@ -55,7 +60,7 @@ services:
     environment:
       POSTGRES_DB: control
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${CONTROL_PG_PASSWORD:-}
+      POSTGRES_PASSWORD: ${CONTROL_PG_PASSWORD}
     volumes:
       - control-pg:/var/lib/postgresql/data
     networks:
@@ -75,7 +80,7 @@ services:
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: convex
-      POSTGRES_PASSWORD: ${CONVEX_PG_PASSWORD:-}
+      POSTGRES_PASSWORD: ${CONVEX_PG_PASSWORD}
     volumes:
       - convex-pg:/var/lib/postgresql/data
     networks:
@@ -95,17 +100,17 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgres://postgres:${CONTROL_PG_PASSWORD:-}@control-postgres:5432/control
+      DATABASE_URL: postgres://postgres:${CONTROL_PG_PASSWORD}@control-postgres:5432/control
       # pg-boss lives in the control database (design §1).
-      BOSS_DB: postgres://postgres:${CONTROL_PG_PASSWORD:-}@control-postgres:5432/control
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
-      SECRETS_KEY: ${SECRETS_KEY:-}
-      BASE_DOMAIN: ${BASE_DOMAIN:-}
+      BOSS_DB: postgres://postgres:${CONTROL_PG_PASSWORD}@control-postgres:5432/control
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      SECRETS_KEY: ${SECRETS_KEY}
+      BASE_DOMAIN: ${BASE_DOMAIN}
       # Consumed by better-auth socialProviders (Task 3); blank disables them.
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
-      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
     networks:
       - proxy
       - backend-internal
@@ -116,14 +121,14 @@ services:
       - traefik.enable=true
       # web is on two networks; pin which one Traefik uses to reach it.
       - traefik.docker.network=proxy
-      - traefik.http.routers.control-web.rule=Host(`${BASE_DOMAIN:-}`)
+      - traefik.http.routers.control-web.rule=Host(`${BASE_DOMAIN}`)
       - traefik.http.routers.control-web.entrypoints=websecure
       - traefik.http.routers.control-web.tls=true
       - traefik.http.routers.control-web.tls.certresolver=letsencrypt
       # Request one wildcard certificate for the whole domain here; every
       # per-project router then reuses it (design §1, "wildcard TLS").
-      - traefik.http.routers.control-web.tls.domains[0].main=${BASE_DOMAIN:-}
-      - traefik.http.routers.control-web.tls.domains[0].sans=*.${BASE_DOMAIN:-}
+      - traefik.http.routers.control-web.tls.domains[0].main=${BASE_DOMAIN}
+      - traefik.http.routers.control-web.tls.domains[0].sans=*.${BASE_DOMAIN}
       # Must match the port apps/web listens on (Task 6).
       - traefik.http.services.control-web.loadbalancer.server.port=3000
 
@@ -135,14 +140,14 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgres://postgres:${CONTROL_PG_PASSWORD:-}@control-postgres:5432/control
+      DATABASE_URL: postgres://postgres:${CONTROL_PG_PASSWORD}@control-postgres:5432/control
       # Admin connection to convex-data Postgres (used to CREATE/DROP DATABASE).
-      CONVEX_PG_ADMIN_URL: postgres://convex:${CONVEX_PG_PASSWORD:-}@convex-data-postgres:5432/postgres
+      CONVEX_PG_ADMIN_URL: postgres://convex:${CONVEX_PG_PASSWORD}@convex-data-postgres:5432/postgres
       # Connection string WITHOUT a database name — passed to backend
       # containers as POSTGRES_URL (design §1).
-      CONVEX_PG_URL_BASE: postgres://convex:${CONVEX_PG_PASSWORD:-}@convex-data-postgres:5432
-      SECRETS_KEY: ${SECRETS_KEY:-}
-      BASE_DOMAIN: ${BASE_DOMAIN:-}
+      CONVEX_PG_URL_BASE: postgres://convex:${CONVEX_PG_PASSWORD}@convex-data-postgres:5432
+      SECRETS_KEY: ${SECRETS_KEY}
+      BASE_DOMAIN: ${BASE_DOMAIN}
       CONVEX_BACKEND_IMAGE: ${CONVEX_BACKEND_IMAGE:-ghcr.io/get-convex/convex-backend:latest}
     volumes:
       # READ-WRITE, full mount: this is the single privileged mount in the
