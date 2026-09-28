@@ -209,7 +209,12 @@ export function createDocker(options: { socketPath?: string } = {}): DockerApi {
   }
 
   async function restartContainer(name: string): Promise<void> {
-    await docker.getContainer(name).restart();
+    try {
+      await docker.getContainer(name).restart();
+    } catch (err) {
+      // A missing container is an idempotent no-op, like stop/remove.
+      if (!isNotFound(err)) throw err;
+    }
   }
 
   async function version(name: string): Promise<string | null> {

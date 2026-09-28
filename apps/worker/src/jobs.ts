@@ -259,6 +259,19 @@ async function setStatus(
   await db.update(projects).set({ status }).where(eq(projects.id, projectId));
 }
 
+/** Read and decrypt the persisted instance secret, or `null` when absent. */
+async function readInstanceSecret(
+  db: ControlDb,
+  projectId: string,
+): Promise<string | null> {
+  const rows = await db
+    .select()
+    .from(projectSecrets)
+    .where(eq(projectSecrets.projectId, projectId));
+  const existing = rows[0];
+  return existing ? decryptSecret(existing.instanceSecretEnc) : null;
+}
+
 /**
  * Read the project's stored instance secret, generating and encrypting a fresh
  * random 32-byte hex secret the first time. Idempotent across retries: the
@@ -269,12 +282,8 @@ async function loadOrCreateInstanceSecret(
   db: ControlDb,
   projectId: string,
 ): Promise<string> {
-  const rows = await db
-    .select()
-    .from(projectSecrets)
-    .where(eq(projectSecrets.projectId, projectId));
-  const existing = rows[0];
-  if (existing) return decryptSecret(existing.instanceSecretEnc);
+  const existing = await readInstanceSecret(db, projectId);
+  if (existing) return existing;
 
   // Same entropy as upstream `openssl rand -hex 32` (design §2).
   const instanceSecret = randomBytes(32).toString("hex");
@@ -286,7 +295,17 @@ async function loadOrCreateInstanceSecret(
       adminKeyEnc: encryptSecret(""), // placeholder until keygen runs
     })
     .onConflictDoNothing();
-  return instanceSecret;
+
+  // Re-read rather than returning the local value. If a concurrent caller won
+  // the insert, our value was discarded: returning it would hand Docker a
+  // secret that does not match the one at rest, so the backend would start
+  // with a mismatched INSTANCE_SECRET and the project would fail. Reading back
+  // makes every caller converge on the single persisted secret.
+  const persisted = await readInstanceSecret(db, projectId);
+  if (!persisted) {
+    throw new Error(`project_secrets row for ${projectId} missing after insert`);
+  }
+  return persisted;
 }
 
 /** Poll the container's `/version` until it answers, or the timeout elapses. */
