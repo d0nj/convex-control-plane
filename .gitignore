@@ -1,0 +1,17 @@
+# .brainstorm — untracked by design, never commit
+.research/
+.brainstorm/
+node_modules/
+.next/
+dist/
+*.local
+.env
+.env.*
+!.env.example
+convex_local_backend.sqlite3
+convex_local_storage/
+# Turbo + pnpm
+.turbo/
+pnpm-lock.yaml
+# SDD workspaces (per-plan scratch, Task 1+ briefs/reports/reviews)
+.superpowers/
