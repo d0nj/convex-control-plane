@@ -1,0 +1,7 @@
+# Next.js build output and TypeScript incremental cache. `.next/` is also
+# covered by the repo-root .gitignore; repeated here so the web app is
+# self-contained if its directory is ever split out.
+.next/
+out/
+next-env.d.ts.bak
+*.tsbuildinfo
