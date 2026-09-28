@@ -104,6 +104,9 @@ services:
       # pg-boss lives in the control database (design §1).
       BOSS_DB: postgres://postgres:${CONTROL_PG_PASSWORD}@control-postgres:5432/control
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      # Public origin better-auth issues OAuth callbacks / CSRF checks against
+      # (required in deploy; see .env.example). Derived per-request if unset.
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
       SECRETS_KEY: ${SECRETS_KEY}
       BASE_DOMAIN: ${BASE_DOMAIN}
       # Consumed by better-auth socialProviders (Task 3); blank disables them.

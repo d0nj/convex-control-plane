@@ -45,6 +45,22 @@ const github = oauthProvider(
   process.env.GITHUB_CLIENT_SECRET,
 );
 
+// Fail fast when a production runtime is missing BETTER_AUTH_SECRET: better-auth
+// otherwise falls back to a public default secret, making every session
+// forgeable. Skipped during `next build`, which sets NODE_ENV=production but
+// evaluates this module without runtime secrets — the guard must fire at
+// `next start`/deploy, not break the build. Also skipped in dev/test (NODE_ENV
+// unset or "test"), and by the better-auth CLI schema generator (not production).
+if (
+  process.env.NODE_ENV === "production" &&
+  process.env.NEXT_PHASE !== "phase-production-build" &&
+  !process.env.BETTER_AUTH_SECRET
+) {
+  throw new Error(
+    "BETTER_AUTH_SECRET is required in production (refusing better-auth's default secret)",
+  );
+}
+
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
