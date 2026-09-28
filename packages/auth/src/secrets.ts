@@ -21,13 +21,37 @@ const KEY_BYTES = 32;
 const IV_BYTES = 12;
 const TAG_BYTES = 16;
 
+/**
+ * Canonical base64 charset: standard alphabet, optional `=` padding only at the
+ * end. Combined with the length and round-trip checks in {@link decodeB64} this
+ * rejects the lenient inputs `Buffer.from(x, "base64")` would silently accept
+ * (whitespace, URL-safe chars, bad padding, truncated groups).
+ */
+const B64_RE = /^[A-Za-z0-9+/]*={0,2}$/;
+
+/**
+ * Strictly decode base64 `value`, throwing on anything non-canonical. The
+ * re-encode round-trip is the authoritative check: Node's decoder is lenient,
+ * so comparing the canonical form back is what actually catches junk.
+ */
+function decodeB64(value: string, field: string): Buffer {
+  if (value.length % 4 !== 0 || !B64_RE.test(value)) {
+    throw new Error(`invalid base64 in ${field}`);
+  }
+  const buf = Buffer.from(value, "base64");
+  if (buf.toString("base64") !== value) {
+    throw new Error(`non-canonical base64 in ${field}`);
+  }
+  return buf;
+}
+
 /** Decode and validate `SECRETS_KEY`; throws unless it is 32 bytes of base64. */
 function key(): Buffer {
   const raw = process.env.SECRETS_KEY;
   if (!raw) {
     throw new Error("SECRETS_KEY is not set");
   }
-  const buf = Buffer.from(raw, "base64");
+  const buf = decodeB64(raw, "SECRETS_KEY");
   if (buf.length !== KEY_BYTES) {
     throw new Error(
       `SECRETS_KEY must be base64 of exactly ${KEY_BYTES} bytes (got ${buf.length})`,
@@ -57,9 +81,9 @@ export function decryptSecret(ciphertext: string): string {
     throw new Error("malformed ciphertext: expected ivB64.tagB64.bodyB64");
   }
   const [ivB64, tagB64, bodyB64] = parts as [string, string, string];
-  const iv = Buffer.from(ivB64, "base64");
-  const tag = Buffer.from(tagB64, "base64");
-  const body = Buffer.from(bodyB64, "base64");
+  const iv = decodeB64(ivB64, "ciphertext iv");
+  const tag = decodeB64(tagB64, "ciphertext tag");
+  const body = decodeB64(bodyB64, "ciphertext body");
   if (iv.length !== IV_BYTES || tag.length !== TAG_BYTES) {
     throw new Error("malformed ciphertext: bad iv or tag length");
   }

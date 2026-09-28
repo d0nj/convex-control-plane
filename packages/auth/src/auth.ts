@@ -62,9 +62,21 @@ export const auth = betterAuth({
         // First user becomes the platform admin; everyone else gets the
         // admin plugin default ("user"). The admin plugin's own hook runs
         // first, so this override wins.
+        //
+        // Fail closed: this hook needs the auth context to count existing
+        // users. If it is ever invoked without one (test harness, a future
+        // better-auth version), throwing is the only safe outcome — the
+        // alternative is promoting *every* user to platform admin. Promotion
+        // happens only on an explicit `=== 0`, never on a missing/undefined
+        // count.
         before: async (user, ctx) => {
-          const existing = await ctx?.context.internalAdapter.countTotalUsers();
-          if ((existing ?? 0) === 0) {
+          if (!ctx) {
+            throw new Error(
+              "user.create.before requires an auth context to decide the first-user promotion",
+            );
+          }
+          const existing = await ctx.context.internalAdapter.countTotalUsers();
+          if (existing === 0) {
             return { data: { ...user, role: "admin" } };
           }
           return { data: user };
