@@ -96,7 +96,11 @@ services:
   # NEVER mounts the Docker socket — it must not be able to touch Docker.
   web:
     build:
-      context: ../apps/web
+      # Monorepo ROOT context: the app imports the workspace packages
+      # @control/auth + @control/db, which ship raw TypeScript, so the image
+      # build needs pnpm-workspace.yaml, pnpm-lock.yaml, and packages/*.
+      context: ..
+      dockerfile: apps/web/Dockerfile
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -139,7 +143,9 @@ services:
   # read-write Docker socket — it creates/removes per-project containers.
   worker:
     build:
-      context: ../apps/worker
+      # Monorepo ROOT context, same reason as web (workspace TS packages).
+      context: ..
+      dockerfile: apps/worker/Dockerfile
     restart: unless-stopped
     environment:
       NODE_ENV: production

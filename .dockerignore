@@ -1,0 +1,21 @@
+# Build context is the monorepo root; keep it lean and free of anything that
+# must never enter an image layer (design §2: no baked secrets).
+.git
+.github
+.brainstorm
+.research
+.superpowers
+node_modules
+**/node_modules
+.next
+**/.next
+.turbo
+**/.turbo
+dist
+**/dist
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+*.local
+*.log

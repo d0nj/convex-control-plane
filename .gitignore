@@ -12,6 +12,8 @@ convex_local_backend.sqlite3
 convex_local_storage/
 # Turbo + pnpm
 .turbo/
-pnpm-lock.yaml
+# pnpm-lock.yaml IS tracked: reproducible installs depend on it (frozen-lockfile
+# Docker builds fail without it). It was ignored during early scaffolding by
+# mistake.
 # SDD workspaces (per-plan scratch, Task 1+ briefs/reports/reviews)
 .superpowers/
