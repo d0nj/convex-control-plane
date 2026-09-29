@@ -1,0 +1,58 @@
+name: ci
+
+# Turbo-gated typecheck/test/build on GitHub-hosted runners. There was no
+# typecheck/test CI before this workflow; turbo's task graph decides what runs,
+# and its local/remote cache skips unchanged tasks.
+#
+# Remote cache wiring is inert when unset: TURBO_TOKEN (repo secret, Vercel PAT)
+# and TURBO_TEAM (repo variable, team slug) are passed as job env, but if either
+# is absent turbo simply falls back to the local cache with a warning — this
+# workflow must not fail for lack of a remote-cache secret.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - ".brainstorm/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  turbo-ci:
+    name: turbo run typecheck test build
+    runs-on: ubuntu-latest
+    env:
+      # Empty when the secret/var is not configured; turbo then uses the local
+      # cache only (warning, not an error).
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Exactly one pnpm-store cache approach: pnpm/action-setup's own cache.
+      # (Do not also set actions/setup-node `cache: pnpm` — that would be
+      # redundant.)
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+          cache: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Turbo typecheck, test, build
+        run: pnpm turbo run typecheck test build
