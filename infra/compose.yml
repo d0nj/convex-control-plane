@@ -85,12 +85,22 @@ services:
       - convex-pg:/var/lib/postgresql/data
     networks:
       - backend-internal
+      # ALSO on `proxy`: per-project backend containers join `proxy` only (the
+      # orchestrator hard-codes NetworkMode "proxy"), and they must resolve the
+      # `convex-data-postgres` service name to reach their own database. The
+      # `proxy` network is NOT internal, so this does not expose Postgres to the
+      # internet — no port is published for it anywhere.
+      - proxy
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U convex -d postgres"]
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 10s
+    labels:
+      # Never routed through the proxy: no router, and no default service
+      # exposure. (The provider is opt-in, but be explicit.)
+      - traefik.enable=false
 
   # Next.js UI + better-auth. Enqueues pg-boss jobs only.
   # NEVER mounts the Docker socket — it must not be able to touch Docker.
