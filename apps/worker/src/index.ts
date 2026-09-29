@@ -2,6 +2,7 @@ import { createAdminDb, createHandlers, HEALTH_POLL_CRON, jobKey, projectSlugFro
 import type { HealthPollInput } from "./jobs.js";
 import { createDocker } from "./docker.js";
 import type { DockerApi } from "./docker.js";
+import { startLogsServer } from "./logs-server.js";
 import { db } from "@control/db";
 import { pathToFileURL } from "node:url";
 import { PgBoss } from "pg-boss";
@@ -82,6 +83,10 @@ export async function main(): Promise<void> {
   await boss.start();
 
   const docker = createDocker();
+  // Internal SSE log-stream endpoint (web proxies authenticated browser streams
+  // to it over the internal network; it is never published — see logs-server.ts).
+  const logs = startLogsServer({ docker });
+  console.log(`logs endpoint: ${logs.url}/logs/:name`);
   const admin = createAdminDb(convexPgAdminUrl);
   const handlers = createHandlers({ db, docker, admin, config });
   await registerQueues(boss, handlers);
@@ -100,6 +105,7 @@ export async function main(): Promise<void> {
     await stopEvents().catch(() => {});
     // graceful: finish in-flight jobs, then close.
     await boss.stop({ graceful: true, timeout: 30_000 });
+    await logs.close().catch(() => {});
     docker.close();
     process.exit(0);
   };

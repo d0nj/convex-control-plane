@@ -1,4 +1,4 @@
-import { PassThrough } from "node:stream";
+import { PassThrough, Readable } from "node:stream";
 import { finished } from "node:stream/promises";
 
 import type {
@@ -27,6 +27,38 @@ export interface ContainerDetails {
   inspect: Docker.ContainerInspectInfo;
   stats: Docker.ContainerStats | null;
   logs: string;
+}
+
+/** One decoded container log line, as produced by {@link DockerLogDemux}. */
+export interface LogLine {
+  /** ISO-8601 timestamp: parsed from Docker's `--timestamps` prefix, else now. */
+  ts: string;
+  stream: "stdout" | "stderr";
+  /** A single line, with no trailing newline. */
+  line: string;
+}
+
+/** The only `logs()` options the worker ever sends. */
+export interface LogStreamRequest {
+  follow: boolean;
+  stdout: boolean;
+  stderr: boolean;
+  tail: number;
+  timestamps: boolean;
+}
+
+/** Minimal container surface the log-stream endpoint needs (dockerode-compatible). */
+export interface LogsContainer {
+  logs(options: LogStreamRequest): Promise<Buffer | NodeJS.ReadableStream>;
+}
+
+/**
+ * Minimal docker-client surface the log-stream endpoint needs. The real
+ * {@link DockerApi} satisfies it structurally; tests inject a fake. Typing it
+ * narrowly keeps the endpoint free of `dockerode` and of the socket singleton.
+ */
+export interface LogsClient {
+  getContainer(name: string): LogsContainer;
 }
 
 /** The subset of a Docker event this worker reacts to. */
@@ -61,6 +93,12 @@ export interface DockerApi {
   version(name: string): Promise<string | null>;
   /** Follow container events; resolves to an unsubscribe function. */
   watchEvents(onEvent: (event: DockerEvent) => void | Promise<void>): Promise<() => Promise<void>>;
+  /**
+   * A container handle exposing only `logs()`, for the internal log-stream
+   * endpoint. Narrow on purpose: the endpoint never needs the rest of dockerode,
+   * and this keeps the socket usage confined here.
+   */
+  getContainer(name: string): LogsContainer;
   /** Release the dockerode client (no sockets are held open by default). */
   close(): void;
 }
@@ -89,6 +127,146 @@ function demuxBuffer(buf: Buffer): string {
   return chunks.length === 0
     ? buf.toString("utf8")
     : Buffer.concat(chunks).toString("utf8");
+}
+
+/**
+ * Incremental, streaming demultiplexer for Docker's `logs` stream. Unlike
+ * {@link demuxBuffer} (one-shot, whole-buffer) this accepts chunks as they
+ * arrive and keeps a per-stream partial-line buffer, so a live `follow` stream
+ * emits complete lines without waiting for the container to exit. It also parses
+ * Docker's `--timestamps` RFC3339Nano prefix into `ts`, falling back to
+ * `new Date().toISOString()` when a line carries no parseable prefix.
+ *
+ * Framing is `[stream(1)][0(3)][length(4, BE)][payload]`. When the first bytes
+ * are not a valid frame header (e.g. a TTY container, which is unframed) it
+ * falls back to a plain UTF-8 decode attributed to `stdout`, mirroring
+ * {@link demuxBuffer}.
+ *
+ * This is the single decode path shared by {@link createLogDemux} (server) and
+ * the endpoint's tests, so a fake source exercises the exact production framing.
+ */
+export class DockerLogDemux {
+  private buffer: Buffer = Buffer.alloc(0);
+  private partial: { stdout: string; stderr: string } = { stdout: "", stderr: "" };
+  private framed: boolean | null = null;
+
+  constructor(private readonly onLine: (line: LogLine) => void) {}
+
+  /** Feed one raw chunk from the Docker stream. */
+  push(chunk: Buffer): void {
+    if (this.framed === false) {
+      this.consume("stdout", chunk.toString("utf8"));
+      return;
+    }
+    this.buffer = this.buffer.length === 0 ? chunk : Buffer.concat([this.buffer, chunk]);
+    if (this.framed === null) {
+      // Need a full header before deciding whether this is a framed stream.
+      if (this.buffer.length < 8) return;
+      this.framed =
+        (this.buffer[0] === 0 || this.buffer[0] === 1 || this.buffer[0] === 2) &&
+        this.buffer[1] === 0 &&
+        this.buffer[2] === 0 &&
+        this.buffer[3] === 0;
+      if (!this.framed) {
+        this.consume("stdout", this.buffer.toString("utf8"));
+        this.buffer = Buffer.alloc(0);
+        return;
+      }
+    }
+    let offset = 0;
+    while (offset + 8 <= this.buffer.length) {
+      const streamByte = this.buffer[offset];
+      const length = this.buffer.readUInt32BE(offset + 4);
+      const start = offset + 8;
+      const end = start + length;
+      if (end > this.buffer.length) break; // wait for the rest of this frame
+      this.consume(
+        streamByte === 2 ? "stderr" : "stdout",
+        this.buffer.subarray(start, end).toString("utf8"),
+      );
+      offset = end;
+    }
+    this.buffer = this.buffer.subarray(offset);
+  }
+
+  /** Flush any buffered partial line. Call once, when the source ends. */
+  flush(): void {
+    // If the whole stream was shorter than a frame header we never decided
+    // framed-vs-unframed; treat the remainder as plain stdout rather than drop it.
+    if (this.framed === null && this.buffer.length > 0) {
+      this.consume("stdout", this.buffer.toString("utf8"));
+      this.buffer = Buffer.alloc(0);
+    }
+    for (const stream of ["stdout", "stderr"] as const) {
+      const rest = this.partial[stream];
+      if (rest.length > 0) {
+        this.partial[stream] = "";
+        this.emit(stream, rest);
+      }
+    }
+  }
+
+  /** Append text for `stream`, emitting each complete line as it is seen. */
+  private consume(stream: "stdout" | "stderr", text: string): void {
+    const combined = this.partial[stream] + text;
+    const parts = combined.split("\n");
+    this.partial[stream] = parts.pop() ?? "";
+    for (const raw of parts) this.emit(stream, raw);
+  }
+
+  /** Emit one line, splitting Docker's `--timestamps` prefix off the content. */
+  private emit(stream: "stdout" | "stderr", raw: string): void {
+    const line = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
+    let ts = new Date().toISOString();
+    let content = line;
+    const space = line.indexOf(" ");
+    if (space > 0) {
+      const candidate = new Date(line.slice(0, space));
+      if (!Number.isNaN(candidate.getTime())) {
+        ts = candidate.toISOString();
+        content = line.slice(space + 1);
+      }
+    }
+    this.onLine({ ts, stream, line: content });
+  }
+}
+
+/**
+ * Wrap a raw Docker `logs` result (a `Buffer` for a one-shot tail, or a live
+ * `ReadableStream` for `follow`) into a chunk-fed {@link DockerLogDemux},
+ * emitting complete {@link LogLine}s as they arrive and flushing the final
+ * partial line on end/close/error.
+ *
+ * Exported so the endpoint and its tests share the exact same decode path.
+ */
+export function createLogDemux(
+  raw: Buffer | NodeJS.ReadableStream,
+  onLine: (line: LogLine) => void,
+): { source: NodeJS.ReadableStream; onEnd: (cb: (err?: Error) => void) => void; destroy: () => void } {
+  const source: NodeJS.ReadableStream = Buffer.isBuffer(raw) ? Readable.from([raw]) : raw;
+  const demux = new DockerLogDemux(onLine);
+  let ended = false;
+  const closeHandlers: Array<(err?: Error) => void> = [];
+  const finish = (err?: Error): void => {
+    if (ended) return;
+    ended = true;
+    demux.flush();
+    for (const cb of closeHandlers) cb(err);
+  };
+  source.on("data", (chunk: Buffer) => demux.push(chunk));
+  source.on("end", () => finish());
+  source.on("close", () => finish());
+  source.on("error", (err: Error) => finish(err));
+  return {
+    source,
+    onEnd(cb) {
+      if (ended) cb();
+      else closeHandlers.push(cb);
+    },
+    destroy() {
+      (source as unknown as { destroy?: () => void }).destroy?.();
+    },
+  };
 }
 
 /** Build the worker's Docker API over the given socket (defaults to the mounted one). */
@@ -257,6 +435,30 @@ export function createDocker(options: { socketPath?: string } = {}): DockerApi {
     };
   }
 
+  function getContainer(name: string): LogsContainer {
+    const container = docker.getContainer(name);
+    return {
+      // dockerode's `logs` overloads discriminate on the literal `follow` flag,
+      // so branch rather than passing a boolean (which fails overload resolution).
+      logs: (options) =>
+        options.follow
+          ? container.logs({
+              follow: true,
+              stdout: options.stdout,
+              stderr: options.stderr,
+              tail: options.tail,
+              timestamps: options.timestamps,
+            })
+          : container.logs({
+              follow: false,
+              stdout: options.stdout,
+              stderr: options.stderr,
+              tail: options.tail,
+              timestamps: options.timestamps,
+            }),
+    };
+  }
+
   return {
     ensureContainer,
     execAdminKey,
@@ -267,6 +469,7 @@ export function createDocker(options: { socketPath?: string } = {}): DockerApi {
     restartContainer,
     version,
     watchEvents,
+    getContainer,
     close: () => {
       // dockerode holds no persistent connection; nothing to release.
     },
