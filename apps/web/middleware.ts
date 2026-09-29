@@ -32,7 +32,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (hasSession && pathname === "/sign-in") {
+  if (hasSession && (pathname === "/sign-in" || pathname === "/sign-up")) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.search = "";
@@ -43,5 +43,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/teams/:path*", "/projects/:path*", "/admin", "/sign-in"],
+  matcher: ["/teams/:path*", "/projects/:path*", "/admin", "/sign-in", "/sign-up"],
 };

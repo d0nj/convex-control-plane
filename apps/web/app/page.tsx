@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { SubmitForm } from "./components/SubmitForm";
 import { getSession } from "@/lib/auth-server";
 import { listTeamsForUser } from "@/lib/teams";
+import { createTeam } from "./actions";
 
 /**
  * `/` — route the signed-in user to their first team, or explain that they have
@@ -23,9 +25,36 @@ export default async function HomePage() {
       <div className="panel">
         <p>You are signed in as {session.user.email}, but you are not a member of any team yet.</p>
         <p className="muted">
-          Ask a team owner to invite you, or create a team from the organization
-          API. Once you belong to a team its projects appear in the header.
+          Ask a team owner to invite you, or create a team below. Once you
+          belong to a team its projects appear in the header.
         </p>
+        <h2>Create a team</h2>
+        <SubmitForm
+          action={createTeam}
+          label="Create team"
+          successText="Team created."
+        >
+          <div>
+            <label htmlFor="team-name">Team name</label>
+            <input
+              id="team-name"
+              name="name"
+              autoComplete="organization"
+              maxLength={128}
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="team-slug">Slug (optional)</label>
+            <input
+              id="team-slug"
+              name="slug"
+              placeholder="my-team"
+              pattern="[a-z][a-z0-9-]{1,61}"
+              title="Lowercase letter, then lowercase letters, digits, or dashes (2-62 chars)."
+            />
+          </div>
+        </SubmitForm>
         <p>
           <Link href="/admin">Open the platform admin page</Link>
         </p>

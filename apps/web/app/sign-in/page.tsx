@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { SignInForm } from "../components/SignInForm";
 
 /**
@@ -15,6 +17,8 @@ export default async function SignInPage({
 }) {
   const params = await searchParams;
   const next = params.next && params.next.startsWith("/") ? params.next : "/";
+  const signUpHref =
+    next === "/" ? "/sign-up" : `/sign-up?next=${encodeURIComponent(next)}`;
 
   return (
     <>
@@ -34,6 +38,10 @@ export default async function SignInPage({
           ),
         }}
       />
+      <p className="muted">
+        Don&apos;t have an account?{" "}
+        <Link href={signUpHref}>Create an account</Link>
+      </p>
     </>
   );
 }
