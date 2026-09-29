@@ -25,8 +25,51 @@ permissions:
   packages: write
 
 jobs:
+  # Detect which images actually need a rebuild. Each image depends on its app
+  # directory plus the workspace packages it imports (web: auth + db; worker:
+  # auth + db + orchestrator) plus the dependency graph itself (lockfile,
+  # workspace manifests) and this workflow file (a filter/config change must
+  # rebuild everything once, or the new rules would never take effect).
+  changes:
+    name: detect changed images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+      worker: ${{ steps.filter.outputs.worker }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Filter changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            web:
+              - 'apps/web/**'
+              - 'packages/auth/**'
+              - 'packages/db/**'
+              - 'pnpm-workspace.yaml'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - '.github/workflows/build-images.yml'
+            worker:
+              - 'apps/worker/**'
+              - 'packages/auth/**'
+              - 'packages/db/**'
+              - 'packages/orchestrator/**'
+              - 'pnpm-workspace.yaml'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - '.github/workflows/build-images.yml'
+
   build:
     name: build ${{ matrix.image.name }}
+    needs: changes
+    # Manual dispatch always builds both; pushes build only what changed.
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs[matrix.filter] == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -34,10 +77,12 @@ jobs:
         include:
           - image:
               name: convex-control-plane-web
+            filter: web
             context: .
             dockerfile: apps/web/Dockerfile
           - image:
               name: convex-control-plane-worker
+            filter: worker
             context: .
             dockerfile: apps/worker/Dockerfile
     steps:
