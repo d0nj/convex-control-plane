@@ -52,6 +52,8 @@ WORKDIR /repo
 # symlink-based, so the manifests come along with the packages.
 COPY --from=deps /repo /repo
 COPY --from=build /repo/apps/web/.next apps/web/.next
-COPY --from=build /repo/apps/web/public apps/web/public
+# NOTE: this app has no apps/web/public directory (all assets are imported by
+# the bundler), so there is deliberately no `public/` COPY here. If a public/
+# dir is ever added, copy it in this layer.
 EXPOSE 3000
 CMD ["pnpm", "--filter", "@control/web", "start"]
