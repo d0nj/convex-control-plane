@@ -167,6 +167,14 @@ services:
       CONVEX_PG_URL_BASE: postgres://convex:${CONVEX_PG_PASSWORD}@convex-data-postgres:5432
       SECRETS_KEY: ${SECRETS_KEY}
       BASE_DOMAIN: ${BASE_DOMAIN}
+      # The worker imports @control/auth for encryptSecret/decryptSecret, and that
+      # module fails fast in production when BETTER_AUTH_SECRET is absent (it
+      # refuses better-auth's public default secret). The worker never serves
+      # auth requests, but the import still evaluates the guard — so the variable
+      # must be present for the process to boot. This is not a new exposure: the
+      # worker already holds a read-write Docker socket, which is root-equivalent
+      # and can already read any container's environment.
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       CONVEX_BACKEND_IMAGE: ${CONVEX_BACKEND_IMAGE:-ghcr.io/get-convex/convex-backend:latest}
     volumes:
       # READ-WRITE, full mount: this is the single privileged mount in the
