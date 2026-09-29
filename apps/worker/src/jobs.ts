@@ -179,6 +179,13 @@ export interface WorkerConfig {
   backendImage: string;
   /** `CONVEX_PG_URL_BASE` — postgres URL WITHOUT a database name. */
   convexPgUrlBase: string;
+  /**
+   * `DISABLE_BEACON` — when true (the default), project containers emit
+   * `DISABLE_BEACON=1` so the backend does not phone home telemetry. Only the
+   * exact strings `"0"` or `"false"` disable the disable (re-enabling the
+   * beacon); unset/empty/any other value means telemetry stays off.
+   */
+  disableBeacon?: boolean;
   /** How long to poll `/version` before marking a project failed. */
   healthTimeoutMs?: number;
   /** Interval between `/version` polls while provisioning. */
@@ -202,6 +209,16 @@ export interface HandlerContext {
 const DEFAULT_HEALTH_TIMEOUT_MS = 120_000;
 const DEFAULT_HEALTH_POLL_INTERVAL_MS = 2_000;
 const DEFAULT_UNHEALTHY_THRESHOLD = 3;
+
+/**
+ * Resolve the raw `DISABLE_BEACON` env string to the spec's `disableBeacon` flag.
+ * Telemetry is disabled by DEFAULT: unset, empty, or any value other than the
+ * exact strings `"0"`/`"false"` returns `true`. Only those two literals return
+ * `false`, re-enabling the backend beacon (opt-out of the default).
+ */
+export function resolveDisableBeacon(raw: string | undefined): boolean {
+  return raw !== "0" && raw !== "false";
+}
 
 /** A pg-boss handler over an array of jobs, as `boss.work` expects. */
 export type Handler<T> = (jobs: Job<T>[]) => Promise<void>;
@@ -337,6 +354,11 @@ export function createHandlers(ctx: HandlerContext) {
     config.healthPollIntervalMs ?? DEFAULT_HEALTH_POLL_INTERVAL_MS;
   const unhealthyThreshold =
     config.unhealthyThreshold ?? DEFAULT_UNHEALTHY_THRESHOLD;
+  // Telemetry off by default: `config.disableBeacon` (when a caller sets it)
+  // wins, otherwise `DISABLE_BEACON` decides — unset/empty = disabled, and only
+  // `"0"`/`"false"` re-enable the beacon.
+  const disableBeacon =
+    config.disableBeacon ?? resolveDisableBeacon(process.env.DISABLE_BEACON);
 
   /** `project.create`: validate → reserve → DB → container → key → healthy. */
   const create: Handler<CreateInput> = (jobs) =>
@@ -368,6 +390,7 @@ export function createHandlers(ctx: HandlerContext) {
         backendImage,
         postgresBaseUrl: config.convexPgUrlBase,
         instanceSecret,
+        disableBeacon,
       });
       // Pull first: on a fresh Docker host the image is absent and
       // ensureContainer would fail with a 404 that pg-boss retries forever.
@@ -455,6 +478,7 @@ export function createHandlers(ctx: HandlerContext) {
         backendImage,
         postgresBaseUrl: config.convexPgUrlBase,
         instanceSecret,
+        disableBeacon,
       });
       // Force a fresh container from the just-pulled image. The named volume
       // `<slug>-data` and the per-project database are untouched by the remove,

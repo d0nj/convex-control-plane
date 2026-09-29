@@ -28,6 +28,12 @@ export interface BackendSpecInput {
   postgresBaseUrl: string;
   /** Plaintext instance secret for this call only; encrypted at rest upstream. */
   instanceSecret: string;
+  /**
+   * When `true` (the default), emit `DISABLE_BEACON=1` so the backend does not
+   * phone home telemetry. Set explicitly to `false` to re-enable the beacon;
+   * the key is then omitted and the backend's own default (beacon on) applies.
+   */
+  disableBeacon?: boolean;
 }
 
 /** Healthcheck in Docker API form (durations are nanoseconds, as the API wants). */
@@ -97,7 +103,14 @@ const CERT_RESOLVER = "letsencrypt";
 export function buildBackendContainerSpec(
   input: BackendSpecInput,
 ): BackendContainerSpec {
-  const { slug, domain, backendImage, postgresBaseUrl, instanceSecret } = input;
+  const {
+    slug,
+    domain,
+    backendImage,
+    postgresBaseUrl,
+    instanceSecret,
+    disableBeacon = true,
+  } = input;
 
   const name = `convex-${slug}`;
   const apiHost = `${slug}-api.${domain}`;
@@ -111,7 +124,9 @@ export function buildBackendContainerSpec(
   // traffic stays on the `proxy`/`backend-internal` Docker networks and
   // Postgres publishes no host ports. The DB name is derived by the backend
   // from INSTANCE_NAME, so POSTGRES_URL is passed through verbatim with no
-  // database appended.
+  // database appended. DISABLE_BEACON=1 (opt-out via `disableBeacon: false`)
+  // mirrors upstream's `--disable-beacon` flag and keeps project containers
+  // from phoning home telemetry by default.
   const Env = [
     `POSTGRES_URL=${postgresBaseUrl}`,
     `INSTANCE_NAME=${slug}`,
@@ -119,6 +134,7 @@ export function buildBackendContainerSpec(
     `CONVEX_CLOUD_ORIGIN=${apiUrl}`,
     `CONVEX_SITE_ORIGIN=${siteUrl}`,
     "RUST_LOG=info",
+    ...(disableBeacon ? ["DISABLE_BEACON=1"] : []),
     "DO_NOT_REQUIRE_SSL=1",
   ];
 

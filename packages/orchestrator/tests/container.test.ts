@@ -87,4 +87,15 @@ describe("buildBackendContainerSpec", () => {
       "convex-demo-site",
     );
   });
+
+  it("disables the telemetry beacon by default", () => {
+    expect(spec.Env).toContain("DISABLE_BEACON=1");
+  });
+
+  it("omits the beacon opt-out when disableBeacon is false", () => {
+    const optIn = buildBackendContainerSpec({ ...INPUT, disableBeacon: false });
+    expect(optIn.Env.some((entry) => entry.startsWith("DISABLE_BEACON="))).toBe(
+      false,
+    );
+  });
 });
