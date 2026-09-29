@@ -75,4 +75,16 @@ describe("buildBackendContainerSpec", () => {
       POSTGRES_URL: "postgres://convex:pw@convex-data-postgres:5432",
     });
   });
+
+  it("binds the api router to the api service", () => {
+    expect(spec.Labels["traefik.http.routers.convex-demo-api.service"]).toBe(
+      "convex-demo-api",
+    );
+  });
+
+  it("binds the site router to the site service", () => {
+    expect(spec.Labels["traefik.http.routers.convex-demo-site.service"]).toBe(
+      "convex-demo-site",
+    );
+  });
 });

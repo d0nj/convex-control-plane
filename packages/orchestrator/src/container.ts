@@ -130,12 +130,14 @@ export function buildBackendContainerSpec(
     [`traefik.http.routers.${name}-api.entrypoints`]: ENTRYPOINT,
     [`traefik.http.routers.${name}-api.tls`]: "true",
     [`traefik.http.routers.${name}-api.tls.certresolver`]: CERT_RESOLVER,
+    [`traefik.http.routers.${name}-api.service`]: `${name}-api`,
     [`traefik.http.services.${name}-api.loadbalancer.server.port`]: "3210",
 
     [`traefik.http.routers.${name}-site.rule`]: `Host(\`${siteHost}\`)`,
     [`traefik.http.routers.${name}-site.entrypoints`]: ENTRYPOINT,
     [`traefik.http.routers.${name}-site.tls`]: "true",
     [`traefik.http.routers.${name}-site.tls.certresolver`]: CERT_RESOLVER,
+    [`traefik.http.routers.${name}-site.service`]: `${name}-site`,
     [`traefik.http.services.${name}-site.loadbalancer.server.port`]: "3211",
   };
 
@@ -182,6 +184,7 @@ export function dashboardSpec(
     [`traefik.http.routers.${name}.entrypoints`]: ENTRYPOINT,
     [`traefik.http.routers.${name}.tls`]: "true",
     [`traefik.http.routers.${name}.tls.certresolver`]: CERT_RESOLVER,
+    [`traefik.http.routers.${name}.service`]: name,
     [`traefik.http.services.${name}.loadbalancer.server.port`]: "6791",
   };
 
