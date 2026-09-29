@@ -65,32 +65,24 @@ jobs:
               - 'package.json'
               - '.github/workflows/build-images.yml'
 
-  build:
-    name: build ${{ matrix.image.name }}
+  # Two explicit build jobs (not a matrix): job-level `if:` cannot see the
+  # `matrix` context, so a matrix keyed on the paths-filter output fails the
+  # run at startup. Duplication between the two jobs is intentional and noted.
+  build-web:
+    name: build convex-control-plane-web
     needs: changes
-    # Manual dispatch always builds both; pushes build only what changed.
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs[matrix.filter] == 'true'
+    # Manual dispatch always builds; pushes build only when web inputs changed.
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - image:
-              name: convex-control-plane-web
-            filter: web
-            context: .
-            dockerfile: apps/web/Dockerfile
-          - image:
-              name: convex-control-plane-worker
-            filter: worker
-            context: .
-            dockerfile: apps/worker/Dockerfile
+    env:
+      IMAGE_NAME: convex-control-plane-web
+      DOCKERFILE: apps/web/Dockerfile
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Free disk space
-        # Runners ship with ~14GB free; a Next build + two images can spike.
+        # Runners ship with ~14GB free; a Next build can spike disk usage.
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
           df -h /
@@ -112,22 +104,77 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ matrix.image.name }}
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest
             type=sha,format=long
           labels: |
-            org.opencontainers.image.title=${{ matrix.image.name }}
+            org.opencontainers.image.title=${{ env.IMAGE_NAME }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
+          context: .
+          file: ${{ env.DOCKERFILE }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.image.name }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}
+          cache-from: type=gha,scope=${{ env.IMAGE_NAME }}
+          cache-to: type=gha,mode=max,scope=${{ env.IMAGE_NAME }}
+          provenance: false
+
+  build-worker:
+    name: build convex-control-plane-worker
+    needs: changes
+    # Manual dispatch always builds; pushes build only when worker inputs changed.
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.worker == 'true'
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: convex-control-plane-worker
+      DOCKERFILE: apps/worker/Dockerfile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
+          df -h /
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive tags and labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
+          labels: |
+            org.opencontainers.image.title=${{ env.IMAGE_NAME }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ env.IMAGE_NAME }}
+          cache-to: type=gha,mode=max,scope=${{ env.IMAGE_NAME }}
           provenance: false
