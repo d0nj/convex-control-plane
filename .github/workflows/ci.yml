@@ -41,9 +41,10 @@ jobs:
       # (Do not also set actions/setup-node `cache: pnpm` — that would be
       # redundant.)
       - name: Install pnpm
+      # version intentionally unset: root package.json pins
+      # packageManager pnpm@10.0.0 and action-setup errors when both are set.
         uses: pnpm/action-setup@v6
         with:
-          version: 10
           cache: true
 
       - name: Set up Node
