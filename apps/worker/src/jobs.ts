@@ -369,6 +369,10 @@ export function createHandlers(ctx: HandlerContext) {
         postgresBaseUrl: config.convexPgUrlBase,
         instanceSecret,
       });
+      // Pull first: on a fresh Docker host the image is absent and
+      // ensureContainer would fail with a 404 that pg-boss retries forever.
+      await event(db, { projectId: project.id, job: "project.create", message: `pulling ${backendImage}` });
+      await docker.pullImage(backendImage);
       await docker.ensureContainer(spec);
       await event(db, { projectId: project.id, job: "project.create", message: `container ${spec.name} started` });
 
