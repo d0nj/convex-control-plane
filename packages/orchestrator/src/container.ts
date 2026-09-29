@@ -105,9 +105,13 @@ export function buildBackendContainerSpec(
   const apiUrl = `https://${apiHost}`;
   const siteUrl = `https://${siteHost}`;
 
-  // Env keys mirror `self-hosted/docker-build/run_backend.sh:58-64`. The DB
-  // name is derived by the backend from INSTANCE_NAME, so POSTGRES_URL is
-  // passed through verbatim with no database appended.
+  // Env keys mirror `self-hosted/docker-build/run_backend.sh:58-64`, plus
+  // DO_NOT_REQUIRE_SSL: the internal `convex-data-postgres` has TLS off and the
+  // backend refuses a non-TLS handshake otherwise. Plaintext PG is safe here —
+  // traffic stays on the `proxy`/`backend-internal` Docker networks and
+  // Postgres publishes no host ports. The DB name is derived by the backend
+  // from INSTANCE_NAME, so POSTGRES_URL is passed through verbatim with no
+  // database appended.
   const Env = [
     `POSTGRES_URL=${postgresBaseUrl}`,
     `INSTANCE_NAME=${slug}`,
@@ -115,6 +119,7 @@ export function buildBackendContainerSpec(
     `CONVEX_CLOUD_ORIGIN=${apiUrl}`,
     `CONVEX_SITE_ORIGIN=${siteUrl}`,
     "RUST_LOG=info",
+    "DO_NOT_REQUIRE_SSL=1",
   ];
 
   // Two routers on one container: api host -> 3210, site host -> 3211.
