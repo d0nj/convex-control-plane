@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { CheckIcon, CopyIcon } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 
 /**
  * Copy-to-clipboard button.
@@ -9,7 +12,13 @@ import { useState } from "react";
  * `.env.local` snippet. The snippet text is produced server-side; this component
  * only copies whatever it was handed and never stores it beyond the render.
  */
-export function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
+export function CopyButton({
+  text,
+  label = "Copy",
+}: {
+  text: string;
+  label?: string;
+}) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -23,8 +32,15 @@ export function CopyButton({ text, label = "Copy" }: { text: string; label?: str
   }
 
   return (
-    <button className="secondary" type="button" onClick={copy}>
+    <Button
+      variant="outline"
+      size="sm"
+      type="button"
+      onClick={copy}
+      aria-live="polite"
+    >
+      {copied ? <CheckIcon aria-hidden /> : <CopyIcon aria-hidden />}
       {copied ? "Copied" : label}
-    </button>
+    </Button>
   );
 }

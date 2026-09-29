@@ -15,7 +15,8 @@ export const metadata: Metadata = {
 
 /**
  * Root layout. Renders the persistent header (which shows the signed-in user
- * and team links) around every route.
+ * and team links) around every route. Always dark: this is an ops console, so
+ * `dark` is pinned on <html> and :root/.dark carry the same tokens.
  */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

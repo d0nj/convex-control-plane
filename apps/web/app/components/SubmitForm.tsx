@@ -4,6 +4,8 @@ import { useActionState } from "react";
 import type { ReactNode } from "react";
 
 import type { ActionState, ServerAction } from "@/lib/action-state";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 /**
  * A form bound to a server action that shows inline success/failure and
@@ -30,15 +32,32 @@ export function SubmitForm({
   return (
     <form action={formAction} className={className}>
       {children}
-      <button
-        type="submit"
-        className={variant === "primary" ? undefined : variant}
-        disabled={pending}
-      >
-        {pending ? "Working…" : label}
-      </button>
-      {state?.error && <p className="error-text">{state.error}</p>}
-      {state?.ok && <p className="ok-text">{successText}</p>}
+      <div className="mt-3">
+        <Button
+          type="submit"
+          variant={
+            variant === "primary"
+              ? "default"
+              : variant === "danger"
+                ? "destructive"
+                : "secondary"
+          }
+          size="sm"
+          disabled={pending}
+        >
+          {pending ? "Working…" : label}
+        </Button>
+      </div>
+      {state?.error && (
+        <Alert variant="destructive" className="mt-3">
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
+      )}
+      {state?.ok && (
+        <p role="status" className="mt-2 text-sm text-[var(--ok)]">
+          {successText}
+        </p>
+      )}
     </form>
   );
 }

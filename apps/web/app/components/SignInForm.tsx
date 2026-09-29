@@ -4,6 +4,18 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 
 /**
  * Sign-in form (client component).
@@ -67,80 +79,103 @@ export function SignInForm({
   }
 
   return (
-    <div className="panel">
-      <form onSubmit={onPasswordSignIn}>
-        <p>
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </p>
-        <p>
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </p>
-        <button type="submit" disabled={pending}>
-          {pending ? "Signing in…" : "Sign in"}
-        </button>
-      </form>
-
-      {(providers.google || providers.github) && (
-        <>
-          <h2>Or continue with</h2>
-          <div className="row">
-            {providers.google && (
-              <button
-                className="secondary"
-                type="button"
-                onClick={() => onOAuth("google")}
-              >
-                Google
-              </button>
-            )}
-            {providers.github && (
-              <button
-                className="secondary"
-                type="button"
-                onClick={() => onOAuth("github")}
-              >
-                GitHub
-              </button>
-            )}
+    <Card className="max-w-md">
+      <CardHeader>
+        <CardTitle>Sign in</CardTitle>
+        <CardDescription>
+          Email and password, an OAuth provider, or team SSO.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <form onSubmit={onPasswordSignIn} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setEmail(e.target.value)
+              }
+              required
+            />
           </div>
-        </>
-      )}
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setPassword(e.target.value)
+              }
+              required
+            />
+          </div>
+          <Button type="submit" disabled={pending} className="w-full">
+            {pending ? "Signing in…" : "Sign in"}
+          </Button>
+        </form>
 
-      <h2>Or sign in with your team SSO</h2>
-      <form className="inline" onSubmit={onSso}>
-        <div>
-          <label htmlFor="domain">Email domain</label>
-          <input
-            id="domain"
-            type="text"
-            placeholder="example.com"
-            value={domain}
-            onChange={(e) => setDomain(e.target.value)}
-            required
-          />
-        </div>
-        <button type="submit" disabled={pending}>
-          Continue with SSO
-        </button>
-      </form>
+        {(providers.google || providers.github) && (
+          <>
+            <Separator />
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Or continue with</p>
+              <div className="flex flex-wrap gap-2">
+                {providers.google && (
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    onClick={() => onOAuth("google")}
+                  >
+                    Google
+                  </Button>
+                )}
+                {providers.github && (
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    onClick={() => onOAuth("github")}
+                  >
+                    GitHub
+                  </Button>
+                )}
+              </div>
+            </div>
+          </>
+        )}
 
-      {error && <p className="error-text">{error}</p>}
-    </div>
+        <Separator />
+
+        <form onSubmit={onSso} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="domain">Team SSO domain</Label>
+            <Input
+              id="domain"
+              type="text"
+              autoComplete="organization"
+              placeholder="example.com"
+              value={domain}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setDomain(e.target.value)
+              }
+              required
+            />
+          </div>
+          <Button variant="secondary" type="submit" disabled={pending}>
+            Continue with SSO
+          </Button>
+        </form>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </CardContent>
+    </Card>
   );
 }

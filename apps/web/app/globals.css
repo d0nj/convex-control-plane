@@ -5,62 +5,56 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ---------------------------------------------------------------------------
- * Legacy homelab styling.
+ * Homelab ops console theme.
  *
- * These hand-rolled rules predate the design system and are still referenced by
- * every existing route (SiteHeader, project pages, forms). The Tailwind/shadcn
- * scaffolding does NOT migrate pages, so these must keep working verbatim —
- * routes have to render exactly as before. New UI is expected to use the
- * shadcn primitives and theme tokens layered on top of this file.
+ * shadcn preset structure, adapted to the dense dark tool UI (not the light
+ * preset defaults). The app is always dark — the root layout pins
+ * `class="dark"` — so :root and .dark carry the same tokens. --ok/--warn/--err
+ * are extra tokens for deployment state and log levels. Legacy --bg/--panel /
+ * --fg tokens are kept while hand-rolled classes below are still referenced;
+ * they are removed with those classes once pages migrate (Part 1 rule).
  * ------------------------------------------------------------------------- */
 
 :root {
-  /* Legacy homelab tokens — ORIGINAL values, restored after `shadcn init`.
-   * shadcn merged its own semantic tokens into this same block and, in doing
-   * so, overwrote the three names it shares with the legacy palette
-   * (`--border`, `--muted`, `--accent`). Existing routes consume those names
-   * from unlayered rules below, so their original values are pinned here to
-   * keep every route rendering exactly as before. The shadcn tokens that do
-   * not collide keep the values the CLI generated. */
   --bg: #0f1115;
   --panel: #171a21;
-  --border: #2a2f3a;
   --fg: #e6e8ec;
-  --muted: #9aa3b2;
-  --accent: #4f8cff;
   --ok: #35c46a;
   --warn: #e0a63a;
   --err: #e5484d;
   color-scheme: dark;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.148 0.004 228.8);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.148 0.004 228.8);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.148 0.004 228.8);
-  --primary: oklch(0.218 0.008 223.9);
-  --primary-foreground: oklch(0.987 0.002 197.1);
-  --secondary: oklch(0.963 0.002 197.1);
-  --secondary-foreground: oklch(0.218 0.008 223.9);
-  --muted-foreground: oklch(0.56 0.021 213.5);
-  --accent-foreground: oklch(0.218 0.008 223.9);
-  --destructive: oklch(0.577 0.245 27.325);
-  --input: oklch(0.925 0.005 214.3);
-  --ring: oklch(0.723 0.014 214.4);
-  --chart-1: oklch(0.872 0.007 219.6);
-  --chart-2: oklch(0.56 0.021 213.5);
-  --chart-3: oklch(0.45 0.017 213.2);
-  --chart-4: oklch(0.378 0.015 216);
-  --chart-5: oklch(0.275 0.011 216.9);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.987 0.002 197.1);
-  --sidebar-foreground: oklch(0.148 0.004 228.8);
-  --sidebar-primary: oklch(0.218 0.008 223.9);
-  --sidebar-primary-foreground: oklch(0.987 0.002 197.1);
-  --sidebar-accent: oklch(0.963 0.002 197.1);
-  --sidebar-accent-foreground: oklch(0.218 0.008 223.9);
-  --sidebar-border: oklch(0.925 0.005 214.3);
-  --sidebar-ring: oklch(0.723 0.014 214.4);
+  --background: oklch(0.188 0.008 240);
+  --foreground: oklch(0.92 0.006 240);
+  --card: oklch(0.224 0.009 240);
+  --card-foreground: oklch(0.92 0.006 240);
+  --popover: oklch(0.224 0.009 240);
+  --popover-foreground: oklch(0.92 0.006 240);
+  --primary: oklch(0.65 0.15 250);
+  --primary-foreground: oklch(0.97 0.004 240);
+  --secondary: oklch(0.29 0.012 240);
+  --secondary-foreground: oklch(0.92 0.006 240);
+  --muted: oklch(0.29 0.012 240);
+  --muted-foreground: oklch(0.68 0.012 240);
+  --accent: oklch(0.29 0.012 240);
+  --accent-foreground: oklch(0.92 0.006 240);
+  --destructive: oklch(0.62 0.21 25);
+  --border: oklch(0.32 0.012 240);
+  --input: oklch(0.16 0.007 240);
+  --ring: oklch(0.65 0.15 250);
+  --chart-1: oklch(0.65 0.15 250);
+  --chart-2: oklch(0.72 0.14 160);
+  --chart-3: oklch(0.75 0.13 80);
+  --chart-4: oklch(0.7 0.12 300);
+  --chart-5: oklch(0.68 0.12 20);
+  --radius: 0.5rem;
+  --sidebar: oklch(0.224 0.009 240);
+  --sidebar-foreground: oklch(0.92 0.006 240);
+  --sidebar-primary: oklch(0.65 0.15 250);
+  --sidebar-primary-foreground: oklch(0.97 0.004 240);
+  --sidebar-accent: oklch(0.29 0.012 240);
+  --sidebar-accent-foreground: oklch(0.92 0.006 240);
+  --sidebar-border: oklch(0.32 0.012 240);
+  --sidebar-ring: oklch(0.65 0.15 250);
 }
 
 * {
@@ -108,6 +102,11 @@ main {
   margin: 0 auto;
   padding: 24px 20px 64px;
 }
+
+/* Legacy rules below this line are dead: no route under app/ references these
+ * class names any more (every page/component migrated to shadcn + Tailwind in
+ * the design-system pass). They stay one release as a safety net for any
+ * injected markup, then get deleted with the --bg/--panel/--fg tokens. */
 
 h1 {
   font-size: 20px;
@@ -325,37 +324,41 @@ form.inline input {
 }
 
 .dark {
-  --background: oklch(0.148 0.004 228.8);
-  --foreground: oklch(0.987 0.002 197.1);
-  --card: oklch(0.218 0.008 223.9);
-  --card-foreground: oklch(0.987 0.002 197.1);
-  --popover: oklch(0.218 0.008 223.9);
-  --popover-foreground: oklch(0.987 0.002 197.1);
-  --primary: oklch(0.925 0.005 214.3);
-  --primary-foreground: oklch(0.218 0.008 223.9);
-  --secondary: oklch(0.275 0.011 216.9);
-  --secondary-foreground: oklch(0.987 0.002 197.1);
-  --muted: oklch(0.275 0.011 216.9);
-  --muted-foreground: oklch(0.723 0.014 214.4);
-  --accent: oklch(0.275 0.011 216.9);
-  --accent-foreground: oklch(0.987 0.002 197.1);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.56 0.021 213.5);
-  --chart-1: oklch(0.872 0.007 219.6);
-  --chart-2: oklch(0.56 0.021 213.5);
-  --chart-3: oklch(0.45 0.017 213.2);
-  --chart-4: oklch(0.378 0.015 216);
-  --chart-5: oklch(0.275 0.011 216.9);
-  --sidebar: oklch(0.218 0.008 223.9);
-  --sidebar-foreground: oklch(0.987 0.002 197.1);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.987 0.002 197.1);
-  --sidebar-accent: oklch(0.275 0.011 216.9);
-  --sidebar-accent-foreground: oklch(0.987 0.002 197.1);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.56 0.021 213.5);
+  color-scheme: dark;
+  --ok: #35c46a;
+  --warn: #e0a63a;
+  --err: #e5484d;
+  --background: oklch(0.188 0.008 240);
+  --foreground: oklch(0.92 0.006 240);
+  --card: oklch(0.224 0.009 240);
+  --card-foreground: oklch(0.92 0.006 240);
+  --popover: oklch(0.224 0.009 240);
+  --popover-foreground: oklch(0.92 0.006 240);
+  --primary: oklch(0.65 0.15 250);
+  --primary-foreground: oklch(0.97 0.004 240);
+  --secondary: oklch(0.29 0.012 240);
+  --secondary-foreground: oklch(0.92 0.006 240);
+  --muted: oklch(0.29 0.012 240);
+  --muted-foreground: oklch(0.68 0.012 240);
+  --accent: oklch(0.29 0.012 240);
+  --accent-foreground: oklch(0.92 0.006 240);
+  --destructive: oklch(0.62 0.21 25);
+  --border: oklch(0.32 0.012 240);
+  --input: oklch(0.16 0.007 240);
+  --ring: oklch(0.65 0.15 250);
+  --chart-1: oklch(0.65 0.15 250);
+  --chart-2: oklch(0.72 0.14 160);
+  --chart-3: oklch(0.75 0.13 80);
+  --chart-4: oklch(0.7 0.12 300);
+  --chart-5: oklch(0.68 0.12 20);
+  --sidebar: oklch(0.224 0.009 240);
+  --sidebar-foreground: oklch(0.92 0.006 240);
+  --sidebar-primary: oklch(0.65 0.15 250);
+  --sidebar-primary-foreground: oklch(0.97 0.004 240);
+  --sidebar-accent: oklch(0.29 0.012 240);
+  --sidebar-accent-foreground: oklch(0.92 0.006 240);
+  --sidebar-border: oklch(0.32 0.012 240);
+  --sidebar-ring: oklch(0.65 0.15 250);
 }
 
 @layer base {
@@ -365,7 +368,8 @@ form.inline input {
   body {
     @apply bg-background text-foreground;
   }
-  button:not(:disabled), [role="button"]:not(:disabled) {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
     cursor: pointer;
   }
   html {

@@ -21,16 +21,20 @@ export default async function SignUpPage({
     next === "/" ? "/sign-in" : `/sign-in?next=${encodeURIComponent(next)}`;
 
   return (
-    <>
-      <h1>Create an account</h1>
-      <p className="muted">
-        The first account created on this instance is automatically promoted to
-        platform admin.
-      </p>
+    <div className="mx-auto max-w-md space-y-4">
+      <div className="space-y-1">
+        <h1 className="m-0 text-xl font-semibold tracking-tight">
+          Create an account
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          The first account created on this instance is automatically promoted
+          to platform admin.
+        </p>
+      </div>
       <SignUpForm next={next} />
-      <p className="muted">
+      <p className="text-sm text-muted-foreground">
         Already have an account? <Link href={signInHref}>Sign in</Link>
       </p>
-    </>
+    </div>
   );
 }

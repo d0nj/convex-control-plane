@@ -3,6 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
 /**
  * Create-project form (client component).
  *
@@ -41,26 +46,36 @@ export function CreateProjectForm({ teamId }: { teamId: string }) {
   }
 
   return (
-    <form className="inline" onSubmit={onSubmit}>
-      <div>
-        <label htmlFor="slug">Slug</label>
-        <input
+    <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-3">
+      <div className="min-w-44 flex-1 space-y-2">
+        <Label htmlFor="slug">Slug</Label>
+        <Input
           id="slug"
           name="slug"
+          autoComplete="off"
           placeholder="my-app"
           pattern="[a-z][a-z0-9-]{1,61}"
           title="Lowercase letter, then lowercase letters, digits, or dashes (2-62 chars)."
           required
         />
       </div>
-      <div>
-        <label htmlFor="displayName">Display name</label>
-        <input id="displayName" name="displayName" placeholder="My App" />
+      <div className="min-w-44 flex-1 space-y-2">
+        <Label htmlFor="displayName">Display name</Label>
+        <Input
+          id="displayName"
+          name="displayName"
+          autoComplete="off"
+          placeholder="My App"
+        />
       </div>
-      <button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending}>
         {pending ? "Creating…" : "Create project"}
-      </button>
-      {error && <p className="error-text">{error}</p>}
+      </Button>
+      {error && (
+        <Alert variant="destructive" className="basis-full">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
     </form>
   );
 }

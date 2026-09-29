@@ -21,12 +21,14 @@ export default async function SignInPage({
     next === "/" ? "/sign-up" : `/sign-up?next=${encodeURIComponent(next)}`;
 
   return (
-    <>
-      <h1>Sign in</h1>
-      <p className="muted">
-        Sign in with email and password, an OAuth provider, or your team&rsquo;s
-        SSO domain.
-      </p>
+    <div className="mx-auto max-w-md space-y-4">
+      <div className="space-y-1">
+        <h1 className="m-0 text-xl font-semibold tracking-tight">Sign in</h1>
+        <p className="text-sm text-muted-foreground">
+          Sign in with email and password, an OAuth provider, or your
+          team&rsquo;s SSO domain.
+        </p>
+      </div>
       <SignInForm
         next={next}
         providers={{
@@ -38,10 +40,10 @@ export default async function SignInPage({
           ),
         }}
       />
-      <p className="muted">
+      <p className="text-sm text-muted-foreground">
         Don&apos;t have an account?{" "}
         <Link href={signUpHref}>Create an account</Link>
       </p>
-    </>
+    </div>
   );
 }

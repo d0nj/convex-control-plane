@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
+import { Button } from "@/components/ui/button";
 
 /** Sign-out control for the header. Clears the session then returns to /sign-in. */
 export function SignOutButton() {
@@ -18,13 +19,14 @@ export function SignOutButton() {
   }
 
   return (
-    <button
-      className="secondary"
+    <Button
+      variant="outline"
+      size="sm"
       type="button"
       onClick={signOut}
       disabled={pending}
     >
       {pending ? "Signing out…" : "Sign out"}
-    </button>
+    </Button>
   );
 }
