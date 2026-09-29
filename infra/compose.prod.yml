@@ -1,0 +1,25 @@
+# Production / test-host override: run PREBUILT images instead of building on
+# the Docker host.
+#
+# Usage (from the repo root):
+#   docker compose -f infra/compose.yml -f infra/compose.prod.yml --env-file .env up -d
+#
+# Images are built by .github/workflows/build-images.yml on GitHub-hosted
+# runners and published to GHCR. The host only pulls.
+#
+# `build:` stays in the base file on purpose — this override never removes it.
+# With `pull_policy: always` compose pulls the published image and never falls
+# back to building, so the host needs no Node toolchain and no build cache.
+# A self-hoster who skips this override builds from source instead; no vendor
+# lock-in either way.
+#
+# These GHCR packages are PUBLIC, so the pull needs no credentials on the host.
+
+services:
+  web:
+    image: ghcr.io/d0nj/convex-control-plane-web:latest
+    pull_policy: always
+
+  worker:
+    image: ghcr.io/d0nj/convex-control-plane-worker:latest
+    pull_policy: always
